@@ -1,0 +1,5 @@
+mypy
+mypy-extensions
+pylint
+pytest
+pytest-cov
