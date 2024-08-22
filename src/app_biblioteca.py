@@ -431,6 +431,14 @@ def biblioteca_db() -> None:
                         print(bright_amarelo(f'\n\tEmpréstimo de identificação |{identificacao}| Renovado com sucesso!'))
                     except ValueError as erro:
                         print(bright_vermelho(str(erro)))
+                case 'D':
+                    try:
+                        identificacao = get_id("Identificação do empréstimo: ")
+                        emprestimo = get_emprestimo_by_id(conexao, identificacao)
+                        devolver_emprestimo(conexao, identificacao)
+                        print(bright_amarelo(f'\n\tEmpréstimo de identificação |{identificacao}| Devolvido com sucesso!'))
+                    except ValueError as erro:
+                        print(bright_vermelho(str(erro)))
 
                 case "S":
                     print(bright_amarelo('\n\tVocê saiu do sistema!'))
