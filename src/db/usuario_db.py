@@ -2,6 +2,7 @@
 DB usuario
 Documentação de apoio: https://www.sqlitetutorial.net/
 '''
+from typing import Any
 from sqlite3 import Connection
 
 
@@ -37,3 +38,26 @@ def insert_usuario(
     dados = (nome, telefone, nacionalidade)
     db_conection.cursor().execute("INSERT INTO usuarios(nome, telefone, nacionalidade) VALUES(?, ?, ?)", dados)
     db_conection.commit()
+
+def tuple_to_dict(data: tuple) -> dict[str, Any]:
+    '''
+    Transforma um elemento (tuple) do banco de dados em uma estrutura de dicionário.
+    Retorna o dicionário com dados.
+    '''
+    if not data:
+        return {}
+    identificacao, nome, telefone, nacionalidade =  data
+    return {
+        'id': identificacao,
+        'nome': nome,
+        'telefone': telefone,
+        'nacionalidade': nacionalidade,
+    }
+def get_usuario_by_nome(db_conection: Connection, usuario_nome: str) -> dict[str, Any]:
+    '''
+    Obter um usuario pelo nome.
+    '''
+    cursor = db_conection.cursor()
+    cursor.execute(f"SELECT id, nome, telefone, nacionalidade FROM usuarios WHERE nome = '{usuario_nome}' ")
+    data = cursor.fetchone()
+    return tuple_to_dict(data)
