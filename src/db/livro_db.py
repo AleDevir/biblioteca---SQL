@@ -63,10 +63,9 @@ def tuple_to_dict(data: tuple) -> dict[str, Any]:
         'editora_id': editora_id,
     }
 
-
 def get_livros_by_autor_nome(db_conection: Connection, autor_nome: str) -> list[dict[str, str]]:
     '''
-    Obter TODOS os livros
+    Obter todos os livros de um determinado autor
     '''
     cursor = db_conection.cursor()
     cursor.execute(f"""SELECT l.id, l.titulo, l.renovacoes_permitidas, l.editora_id
@@ -82,11 +81,22 @@ def get_livros_by_autor_nome(db_conection: Connection, autor_nome: str) -> list[
         result.append(autor)
     return result
 
+def get_livro_by_titulo(db_conection: Connection, titulo: str) -> dict[str, str]:
+    '''
+    Obter livro pelo titulo 
+    '''
+    cursor = db_conection.cursor()
+    cursor.execute(f"""SELECT l.id, l.titulo, l.renovacoes_permitidas, l.editora_id
+                        FROM livros AS l
+                        WHERE l.titulo = '{titulo}' """)
+
+    livro_db = cursor.fetchone()
+    return tuple_to_dict(livro_db)
+
 
 ##########################################################################
-    # OUTRA INTERFACE DE RESPOSTA (DIERENTE DAS CONSULTAS ACIMA) #
+             # OUTRA INTERFACE DE RESPOSTA (PARA CONTAGEM) #
 ##########################################################################
-
 
 def tuple_to_dict_count(data: tuple) -> dict[str, Any]:
     '''
@@ -103,7 +113,6 @@ def tuple_to_dict_count(data: tuple) -> dict[str, Any]:
         'editora_id': editora_id,
         'qtd': qtd
     }
-
 
 def get_livros_count(db_conection: Connection, disponivel: int) -> list[dict[str, int]]:
     '''
@@ -136,25 +145,3 @@ def get_livros_emprestado_count(db_conection: Connection) -> list[dict[str, int]
     Obter todos os livros disponíveis
     '''
     return get_livros_count(db_conection, 0)
-
-def get_exemplares_by_titulo_livro(
-        db_conection: Connection,
-        titulo_livro: str
-) -> list[dict[str, str]]:
-    '''
-    Obter exemplares do livro de titulo
-    '''
-    cursor = db_conection.cursor()
-    cursor.execute(f"""SELECT e.id, e.livro_id, e.disponivel, COUNT ( e.disponivel)
-                        FROM exemplares AS e
-                        INNER JOIN  livros AS l ON (l.id = e.livro_id)
-                        WHERE l.titulo = '{titulo_livro}' AND e.disponivel = 1
-                        GROUP BY e.disponivel
-                    """)
-
-    livros_db = cursor.fetchall()
-    result: list[dict[str, int]] = []
-    for data in livros_db:
-        exemplar = tuple_to_dict(data)
-        result.append(exemplar)
-    return result

@@ -6,8 +6,8 @@ Documentação de apoio:
 '''
 
 from typing import Any
-from datetime import datetime
-from sqlite3 import Connection
+from datetime import datetime, timedelta
+from sqlite3 import Connection, Cursor
 
 def drop_table_emprestimos(db_conection: Connection) -> None:
     '''
@@ -41,10 +41,10 @@ def insert_emprestimo(
         usuario_id: int,
         livro_id: int,
         exemplar_id: int,
-        estado: str,
-        data_emprestimo: datetime,
-        data_para_devolucao: datetime,
-        data_devolucao: datetime | None,
+        estado: str = 'EMPRESTADO',
+        data_emprestimo: datetime = datetime.now(),
+        data_para_devolucao: datetime = datetime.now() + timedelta(days=3),
+        data_devolucao: datetime | None = None,
         numero_de_renovacoes: int = 0,
 ) -> None:
     '''
@@ -60,9 +60,12 @@ def insert_emprestimo(
         data_para_devolucao,
         data_devolucao
     )
-
-    db_conection.cursor().execute('INSERT INTO emprestimos(usuario_id, livro_id, exemplar_id, numero_de_renovacoes, estado, data_emprestimo, data_para_devolucao, data_devolucao) VALUES(?, ?, ?, ?, ?, ?, ?, ?)', dados) # pylint: disable=line-too-long
+    cursor: Cursor = db_conection.cursor()
+    cursor.execute('INSERT INTO emprestimos(usuario_id, livro_id, exemplar_id, numero_de_renovacoes, estado, data_emprestimo, data_para_devolucao, data_devolucao) VALUES(?, ?, ?, ?, ?, ?, ?, ?)', dados) # pylint: disable=line-too-long
+    emprestimo_id = cursor.lastrowid
     db_conection.commit()
+    return emprestimo_id
+
 
 ##########################################################################
     # INTERFACE DE RESPOSTA PARA COUNT #
@@ -111,7 +114,7 @@ def get_emprestimos_atrasados(db_conection: Connection, ) -> list[dict[str, int]
                             e.data_emprestimo, e.data_para_devolucao, e.data_devolucao
                         FROM emprestimos AS e
                         INNER JOIN livros  AS l ON (l.id = e.livro_id)
-                        WHERE  e.estado = 'EMPRESTADO' AND datetime (e.data_para_devolucao, 'localtime')  < datetime('now','localtime')
+                        WHERE  e.estado = 'EMPRESTADO' AND e.data_para_devolucao  < date('now','localtime')
                         """)
 
 
@@ -128,15 +131,14 @@ def get_emprestimo_by_id(db_conection: Connection, emprestimo_id: int) -> dict[s
     Obter um emprestimo pelo id.
     '''
     cursor = db_conection.cursor()
-    cursor.execute(f"""SELECT e.id, e.usuario_id, e.livro_id, e.exemplar_id, e.numero_de_renovacoes, e.estado,
-                    e.data_emprestimo, e.data_para_devolucao, e.data_devolucao
+    cursor.execute(f"""SELECT e.id, e.usuario_id, e.livro_id, e.exemplar_id, e.numero_de_renovacoes, e.estado, e.data_emprestimo, e.data_para_devolucao, e.data_devolucao
                    FROM emprestimos AS e
-                   INNER JOIN livros AS l ON (e.livro_id = l.id)
                    WHERE e.id = {emprestimo_id} """)
     data = cursor.fetchone()
     if data:
         return tuple_to_dict(data)
     return {}
+
 
 def get_emprestimos(db_conection: Connection) -> list[dict[str, Any]]:
     '''
@@ -155,6 +157,21 @@ def get_emprestimos(db_conection: Connection) -> list[dict[str, Any]]:
         emprestimo = tuple_to_dict(data)
         result.append(emprestimo)
     return result
+
+
+def update_emprestimo_renovacao(
+        db_conection: Connection,
+        identificacao: int,
+        numero_de_renovacoes: int,
+        data_para_devolucao: datetime
+    ) -> None:
+    '''
+    Atualiza dados do emprestimo na tabela.
+    '''
+    dados = (numero_de_renovacoes, data_para_devolucao, identificacao)
+    db_conection.cursor().execute("UPDATE emprestimos SET numero_de_renovacoes = ?, data_para_devolucao = ? WHERE id = ?", dados) # pylint: disable=line-too-long
+    db_conection.commit()
+
 
 def update_emprestimo_devolucao(
         db_conection: Connection,
