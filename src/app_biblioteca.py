@@ -33,7 +33,8 @@ from src.db.exemplar_db import(
     get_exemplares_disponiveis_do_livro
 )
 from src.db.autor_db import (
-    delete_autor
+    delete_autor,
+    get_autor_by_nome
 )
 
 from src.db.usuario_db import (
@@ -56,9 +57,6 @@ OPCOES:  Final[dict[str, str ]] = {
     '5': 'Mostrar os empréstimos em atraso',
     '6': 'Marcar um livro como devolvido',
     '7': 'Remover um autor',
-    'E': 'Emprestar',
-    'R': 'Renovar empréstimo',
-    'D': 'devolver empréstimo',
     'S': 'Sair'    
 }
 
@@ -163,6 +161,11 @@ def escolher_uma_opcao_do_menu_entrada(opcoes_menu_dict: dict[str, str]) -> str:
         ).upper()
     return escolher_opcao
 
+
+######################################################
+             # ENTRADA DE DADOS #
+######################################################
+
 def get_dado_str(msg_tipo_de_dado: str) -> str:
     '''
     obtem dado tipo str 
@@ -174,21 +177,21 @@ def get_dado_str(msg_tipo_de_dado: str) -> str:
             print(bright_vermelho(f'\tValor inválido. O campo {tipo} deve ser preenchido.'))
         return tipo
 
-def get_id(tipo_de_identificar: int) -> int:
+def get_id(msg: str) -> int:
     '''
     obtem o id.
     Retorna id
     '''
     while True:
-        identificacao = input_int(f'\n\t{tipo_de_identificar}')
+        identificacao = input_int(f'\n\t{msg}')
         if identificacao > 0:
             return identificacao
         print(bright_vermelho('\tValor  inválido. O identificador deve ser maior que zero.'))
 
-######################################################
-    # Exibir livros disponíveis ou emprestados #
-######################################################
 
+######################################################
+    # FUNÇÕES PARA EXIBIR RESULTADOS #
+######################################################
 def exibir_disponibilidade_livros(msg, livros: list[dict[str, int]]) -> None:
     '''
     Exibe o resultado da opção escolhida
@@ -201,20 +204,12 @@ def exibir_disponibilidade_livros(msg, livros: list[dict[str, int]]) -> None:
         qtd = livro['qtd']
         print(bright_amarelo(f"\n\t{titulo} : {qtd}"))
 
-####################################################################
-    # Exibir quantidade de exemplares disponíveis de um livro #
-####################################################################
-
 def exibir_exemplares_do_livro(livro: dict[str, str], qtd: int = 0) -> None:
     '''
     Exibe os exemplares de um determinado livro.
     '''
     print(bright_amarelo(f'\n\tO livro de título {livro['titulo']}:'))
     print(bright_amarelo(f"\n\t Número de exemplares disponíveis: {qtd}"))
-
-####################################################################
-    # Exibir livros escritos por determinado autor #
-####################################################################
 
 def exibir_livro_escrito_por_autor( autor: str, livros: list[dict[str, str]]) -> None:
     '''
@@ -225,15 +220,10 @@ def exibir_livro_escrito_por_autor( autor: str, livros: list[dict[str, str]]) ->
         titulo = livro['titulo']
         print(bright_amarelo(f"\n\t{titulo}"))
 
-###########################################################
-    # Exibir os emprestimos em atraso #
-###########################################################
-
 def exibir_emprestimos_em_atraso(emprestimos: list[dict[str, str]]) -> None:
     '''
     Exibe o resultado número de exemplares de um determinado livro.
     '''
-   
     print(bright_amarelo('\n\tEmpréstimos em atraso:'))
     for emprestimo in emprestimos:
         identificado_livro = emprestimo['livro_id']
@@ -248,81 +238,54 @@ def exibir_emprestimos_em_atraso(emprestimos: list[dict[str, str]]) -> None:
         print(bright_amarelo(f"\n\tData de devolução: {data_devolucao}\n"))
 
 
-###########################################################
-    # Processos: EMPRESTAR | RENOVAR | DEVOLVER #
-###########################################################
-
-def emprestar(conexao: Connection) -> dict[str, Any]:
+######################################################
+             # FUNCIONALIDADES DA APLICAÇÃO #
+######################################################
+def listar_todos_livros_diponiveis(conexao: Connection) -> list[dict[str, str]]:
     '''
-    Faz um emprestimo.
+    Obtem todos os livros disponiveis.
     '''
+    livros = get_livros_disponiveis_count(conexao)
+    exibir_disponibilidade_livros('Livros disponíveis', livros)
 
-    nome = get_dado_str('\n\tNome do usúario: ')
-    usuario = get_usuario_by_nome(conexao, nome)
-    if not usuario:
-        raise ValueError (bright_vermelho(f'O usuário {nome} não possui cadastro na biblioteca.'))
+def encontar_todos_livros_emprestados(conexao: Connection) -> list[dict[str, str]]:
+    '''
+    Obtem todos os livros emprestados no momento.
+    '''
+    livros = get_livros_emprestado_count(conexao)
+    exibir_disponibilidade_livros('Livros emprestados', livros)
 
-    titulo = get_dado_str('\n\tTítulo do livro: ')
+def localizar_livros_do_autor(conexao: Connection) -> list[dict[str, str]]:
+    '''
+    Localizar os livros escritos por um autor específico
+    '''
+    nome = get_dado_str("Nome do autor: ")
+    livros = get_livros_by_autor_nome(conexao, nome)
+    if livros:
+        exibir_livro_escrito_por_autor(nome, livros)
+    else:
+        print(bright_vermelho(f'\n\t {nome} não possui livros associados.'))
+
+def verificar_numero_de_exemplares_disponiveis_do_livro(conexao: Connection)  -> list[dict[str, str]]:
+    '''
+    Verifica o número de cópias disponíveis de um determinado livro
+    '''
+    titulo = get_dado_str("Título do livro: ")
     livro =  get_livro_by_titulo(conexao, titulo)
     if not livro:
-        raise ValueError (bright_vermelho(f'O livro {titulo} não possui cadastro na biblioteca.'))
+        print(bright_vermelho(f'\n\t {titulo} não encontrado na base de dados.'))
+    else:
+        quantidade = quantidade_de_exemplares_disponiveis_do_livro(conexao, livro['id'])
+        exibir_exemplares_do_livro(livro, quantidade)
 
-    exemplar = get_exemplares_disponiveis_do_livro(conexao, livro['id'])
-
-    if not exemplar:
-        raise ValueError (bright_vermelho(f'O livro {titulo} não possui exemplares disponíveis para empréstimo.'))
-
-    exemplar_id = exemplar[0]['id']
-
-    emprestimo_id = insert_emprestimo(
-        db_conection = conexao,
-        usuario_id = usuario['id'],
-        livro_id = livro['id'],
-        exemplar_id = exemplar_id,
-    )
-    update_exemplar(
-        conexao,
-        disponivel = 0,
-        identificacao = exemplar_id,
-    )
-    return get_emprestimo_by_id(conexao, emprestimo_id)
-
-
-def renovar_emprestimo(conexao: Connection, identificacao_emprestimo: int) -> dict[str, Any]:
+def mostrar_emprestimos_em_atraso(conexao: Connection)  -> list[dict[str, str]]:
     '''
-    Renova o empréstimo.
+    Mostra os empréstimos em atraso
     '''
-    emprestimo = get_emprestimo_by_id(conexao, identificacao_emprestimo)
-    if not emprestimo:
-        raise ValueError (bright_vermelho(f'\n\tO empréstimo de identificação |{identificacao_emprestimo}| não existe na base de dados'))
-    if emprestimo['estado'] == 'DEVOLVIDO':
-        raise ValueError (bright_vermelho("\n\tEmpréstimo já foi devolvido."))
-   
-    livro = get_livro_by_id(conexao, emprestimo['livro_id'])
-    renovacoes_permitidas = livro['renovacoes_permitidas']
+    emprestimo = get_emprestimos_atrasados(conexao)
+    exibir_emprestimos_em_atraso(emprestimo)
 
-    if renovacoes_permitidas <= 0:
-        raise ValueError(bright_vermelho(f"\n\tO livro de título {livro['titulo']} não permite renovações."))
-
-    numero_de_renovacoes = emprestimo['numero_de_renovacoes']
-
-    if numero_de_renovacoes >= renovacoes_permitidas:
-        raise ValueError(bright_vermelho(f"\n\tO livro de título {livro['titulo']} atingiu o limite de renovações permitidas: {renovacoes_permitidas}."))
-
-    update_emprestimo_renovacao(
-        conexao,
-        identificacao= identificacao_emprestimo,
-        numero_de_renovacoes = + 1,
-        data_para_devolucao = datetime.now() + timedelta(days = 3),
-    )
-    update_exemplar(
-        conexao,
-        disponivel = 0,
-        identificacao = emprestimo['exemplar_id'],
-    )
-    return get_emprestimo_by_id(conexao, identificacao_emprestimo)
-
-def devolver_emprestimo(conexao: Connection, identificacao_emprestimo: int) -> dict[str, Any]:
+def devolver(conexao: Connection, identificacao_emprestimo: int) -> dict[str, Any]:
     '''
     Devolve o empréstimo  de id 
     Retorna o Emprestimo como DEVOLVIDO.
@@ -344,6 +307,139 @@ def devolver_emprestimo(conexao: Connection, identificacao_emprestimo: int) -> d
         identificacao = emprestimo['exemplar_id'],
     )
     return get_emprestimo_by_id(conexao, identificacao_emprestimo)
+
+# def devolver_emprestimo(conexao: Connection) -> None:
+#     '''
+#     Devolve o empréstimo  de id 
+#     Retorna o Emprestimo como DEVOLVIDO.
+#     '''
+#     try:
+#         emprestimo_id = get_id('Número de identificação do empréstimo: ')
+#         devolver(conexao, emprestimo_id)
+#         print(bright_amarelo(f'\n\tEmpréstimo de identificação |{emprestimo_id}| Devolvido com sucesso!'))
+#     except ValueError as erro:
+#         print(bright_vermelho(str(erro)))
+
+def devolver_livro(conexao: Connection) -> dict[str, Any]:
+    '''
+    Marca um livro como devolvido
+    '''
+    try:    
+        identificacao = get_id("Identificação do empréstimo: ")
+        devolver(conexao, identificacao)
+        print(bright_amarelo(f'\n\tEmpréstimo de identificação |{identificacao}| Devolvido com sucesso!'))
+    except ValueError as erro:
+        print(bright_vermelho(str(erro)))
+
+def deletar_um_autor(conexao: Connection) -> dict[str, Any]:
+    '''
+    Remover um autor
+    '''
+    try:
+        autor_nome = get_dado_str('\n\tNome do autor: ')
+        autor = get_autor_by_nome(conexao, autor_nome)
+        if not autor:
+            raise ValueError(bright_vermelho(f"Autor {autor_nome} não cadastrado."))
+        delete_autor(conexao, autor['id'])
+        print(bright_amarelo(f'\n\tAutor {autor_nome} excluido com sucesso!'))
+    except ValueError as erro:
+        print(bright_vermelho(str(erro)))
+    except IntegrityError:
+        print(bright_vermelho(f"\n\tO autor {autor_nome} não pode ser excluído porque possui livros associados."))
+    
+###########################################################
+    # Processos: EMPRESTAR | RENOVAR #
+###########################################################
+
+# def emprestar(conexao: Connection) -> dict[str, Any]:
+#     '''
+#     Faz um emprestimo.
+#     '''
+
+#     nome = get_dado_str('\n\tNome do usúario: ')
+#     usuario = get_usuario_by_nome(conexao, nome)
+#     if not usuario:
+#         raise ValueError (bright_vermelho(f'O usuário {nome} não possui cadastro na biblioteca.'))
+
+#     titulo = get_dado_str('\n\tTítulo do livro: ')
+#     livro =  get_livro_by_titulo(conexao, titulo)
+#     if not livro:
+#         raise ValueError (bright_vermelho(f'O livro {titulo} não possui cadastro na biblioteca.'))
+
+#     exemplar = get_exemplares_disponiveis_do_livro(conexao, livro['id'])
+
+#     if not exemplar:
+#         raise ValueError (bright_vermelho(f'O livro {titulo} não possui exemplares disponíveis para empréstimo.'))
+
+#     exemplar_id = exemplar[0]['id']
+
+#     emprestimo_id = insert_emprestimo(
+#         db_conection = conexao,
+#         usuario_id = usuario['id'],
+#         livro_id = livro['id'],
+#         exemplar_id = exemplar_id,
+#     )
+#     update_exemplar(
+#         conexao,
+#         disponivel = 0,
+#         identificacao = exemplar_id,
+#     )
+#     return get_emprestimo_by_id(conexao, emprestimo_id)
+
+# def emprestar_um_livro(conexao: Connection) -> dict[str, Any]:
+#     '''
+#     Empresta um exemplar do livro.
+#     '''
+#     try:                 
+#         emprestimo_id = emprestar(conexao)
+#         print(bright_amarelo(f'\n\tEmpréstimo de identificação |{emprestimo_id}| realizado com sucesso!'))
+#     except ValueError as erro:
+#         print(bright_vermelho(str(erro)))
+     
+# def renovar(conexao: Connection, identificacao_emprestimo: int) -> dict[str, Any]:
+#     '''
+#     Renova o empréstimo.
+#     '''
+#     emprestimo = get_emprestimo_by_id(conexao, identificacao_emprestimo)
+#     if not emprestimo:
+#         raise ValueError (bright_vermelho(f'\n\tO empréstimo de identificação |{identificacao_emprestimo}| não existe na base de dados'))
+#     if emprestimo['estado'] == 'DEVOLVIDO':
+#         raise ValueError (bright_vermelho("\n\tEmpréstimo já foi devolvido."))
+   
+#     livro = get_livro_by_id(conexao, emprestimo['livro_id'])
+#     renovacoes_permitidas = livro['renovacoes_permitidas']
+
+#     if renovacoes_permitidas <= 0:
+#         raise ValueError(bright_vermelho(f"\n\tO livro de título {livro['titulo']} não permite renovações."))
+
+#     numero_de_renovacoes = emprestimo['numero_de_renovacoes']
+
+#     if numero_de_renovacoes >= renovacoes_permitidas:
+#         raise ValueError(bright_vermelho(f"\n\tO livro de título {livro['titulo']} atingiu o limite de renovações permitidas: {renovacoes_permitidas}."))
+
+#     update_emprestimo_renovacao(
+#         conexao,
+#         identificacao= identificacao_emprestimo,
+#         numero_de_renovacoes = + 1,
+#         data_para_devolucao = datetime.now() + timedelta(days = 3),
+#     )
+#     update_exemplar(
+#         conexao,
+#         disponivel = 0,
+#         identificacao = emprestimo['exemplar_id'],
+#     )
+#     return get_emprestimo_by_id(conexao, identificacao_emprestimo)
+
+# def revovar_um_emprestimo(conexao: Connection) -> dict[str, Any]: 
+#     '''
+#     Renoa um emprestimo
+#     '''
+#     try:
+#         identificacao = get_id('\n\tIdentificação do empréstimo: ')
+#         renovar(conexao, identificacao)
+#         print(bright_amarelo(f'\n\tEmpréstimo de identificação |{identificacao}| Renovado com sucesso!'))
+#     except ValueError as erro:
+#         print(bright_vermelho(str(erro)))
 
 
 ###########################################################
@@ -384,71 +480,25 @@ def biblioteca_db() -> None:
                 case'C':
                     carregar_db(conexao)
                 case '1':
-                    livros = get_livros_disponiveis_count(conexao)
-                    exibir_disponibilidade_livros('Livros disponíveis', livros)
+                    listar_todos_livros_diponiveis(conexao)
                 case'2':
-                    livros = get_livros_emprestado_count(conexao)
-                    exibir_disponibilidade_livros('Livros emprestados', livros)
+                    encontar_todos_livros_emprestados(conexao)
                 case'3':
-                    nome = get_dado_str("Nome do autor: ")
-                    livros = get_livros_by_autor_nome(conexao, nome)
-                    if livros:
-                        exibir_livro_escrito_por_autor(nome, livros)
-                    else:
-                        print(bright_vermelho(f'\n\t {nome} não possui livros associados.'))
-
+                    localizar_livros_do_autor(conexao)
                 case'4':
-                    titulo = get_dado_str("Título do livro: ")
-                    livro =  get_livro_by_titulo(conexao, titulo)
-                    if not livro:
-                        print(bright_vermelho(f'\n\t {titulo} não encontrado na base de dados.'))
-                    else:
-                        quantidade = quantidade_de_exemplares_disponiveis_do_livro(conexao, livro['id'])
-                        exibir_exemplares_do_livro(livro, quantidade)
+                    verificar_numero_de_exemplares_disponiveis_do_livro(conexao)
                 case '5':
-                    emprestimo = get_emprestimos_atrasados(conexao)
-                    exibir_emprestimos_em_atraso(emprestimo)
+                    mostrar_emprestimos_em_atraso(conexao)       
                 case '6':
-                    try:
-                        identificacao = get_id("Identificação do empréstimo: ")
-                        emprestimo = get_emprestimo_by_id(conexao, identificacao)
-                        devolver_emprestimo(conexao, identificacao)
-                        print(bright_amarelo(f'\n\tEmpréstimo de identificação |{identificacao}| Devolvido com sucesso!'))
-                    except ValueError as erro:
-                        print(bright_vermelho(str(erro)))
+                    devolver_livro(conexao)
                 case '7':
-                    try:
-                        autor_id = get_id('\n\tIdentificação do autor: ')
-                        delete_autor(conexao, autor_id)
-                        print(bright_amarelo(f'\n\tAutor de identificação |{autor_id}| excluido com sucesso!'))
-                    except ValueError as erro:
-                        print(bright_vermelho(str(erro)))
-                    except IntegrityError:
-                        print(bright_vermelho(f"\n\tO autor de identificação |{autor_id}| não pode ser excluído porque possui livros associados."))
-                case 'E':
-                    try:                 
-                        emprestimo_id = emprestar(conexao)
-                        print(bright_amarelo(f'\n\tEmpréstimo de identificação |{emprestimo_id}| realizado com sucesso!'))
-                    except ValueError as erro:
-                        print(bright_vermelho(str(erro)))
-                
-                case 'R':
-                    try:
-                        identificacao = get_id('\n\tIdentificação do empréstimo: ')
-                        emprestimo = get_emprestimo_by_id(conexao, identificacao)
-                        renovar_emprestimo(conexao, identificacao)
-                        print(bright_amarelo(f'\n\tEmpréstimo de identificação |{identificacao}| Renovado com sucesso!'))
-                    except ValueError as erro:
-                        print(bright_vermelho(str(erro)))
-                case 'D':
-                    try:
-                        identificacao = get_id("Identificação do empréstimo: ")
-                        emprestimo = get_emprestimo_by_id(conexao, identificacao)
-                        devolver_emprestimo(conexao, identificacao)
-                        print(bright_amarelo(f'\n\tEmpréstimo de identificação |{identificacao}| Devolvido com sucesso!'))
-                    except ValueError as erro:
-                        print(bright_vermelho(str(erro)))
-
+                    deletar_um_autor(conexao)
+                # case 'E':
+                #     emprestar_um_livro(conexao)
+                # case 'R':
+                #     revovar_um_emprestimo(conexao)
+                # case 'D':
+                #     devolver_emprestimo(conexao)
                 case "S":
                     print(bright_amarelo('\n\tVocê saiu do sistema!'))
                     break
