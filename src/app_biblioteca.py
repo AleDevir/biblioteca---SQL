@@ -225,17 +225,26 @@ def exibir_emprestimos_em_atraso(emprestimos: list[dict[str, str]]) -> None:
     Exibe o resultado número de exemplares de um determinado livro.
     '''
     print(bright_amarelo('\n\tEmpréstimos em atraso:'))
+    print(bright_amarelo("\n\t.................................................."))
     for emprestimo in emprestimos:
-        identificado_livro = emprestimo['livro_id']
+        identificado_emprestimo = emprestimo['id']
+        usuario_nome = emprestimo['usuario_nome']
+        titulo = emprestimo['livro_titulo']
+        editora = emprestimo['editora_nome']
         identificado_exemplar = emprestimo['exemplar_id']
         data_emprestimo = emprestimo['data_emprestimo']
         data_para_devolucao = emprestimo['data_para_devolucao']
         data_devolucao = emprestimo['data_devolucao']
-        print(bright_amarelo(f"\n\tLivro de identificado: |{identificado_livro}|"))
-        print(bright_amarelo(f"\n\tExemplar de identificado: |{identificado_exemplar}|"))
+
+        print(bright_amarelo(f"\n\tEmpréstimo de identificação: |{identificado_emprestimo}|"))
+        print(bright_amarelo(f"\n\tUsuário: {usuario_nome}"))
+        print(bright_amarelo(f"\n\tTitulo: {titulo}"))
+        print(bright_amarelo(f"\n\tEditora: {editora}"))
         print(bright_amarelo(f"\n\tData do empréstimo: {data_emprestimo}"))
         print(bright_amarelo(f"\n\tData para devolução: {data_para_devolucao}"))
-        print(bright_amarelo(f"\n\tData de devolução: {data_devolucao}\n"))
+        print(bright_amarelo(f"\n\tData de devolução: {data_devolucao if data_devolucao else '-'}"))
+        print(bright_amarelo(f"\n\tExemplar de identificado: |{identificado_exemplar}|"))
+        print(bright_amarelo("\n\t.................................................."))
 
 
 ######################################################

@@ -88,7 +88,13 @@ def tuple_to_dict(data: tuple) -> dict[str, Any]:
         estado,
         data_emprestimo,
         data_para_devolucao,
-        data_devolucao
+        data_devolucao,
+        usuario_nome,
+        livro_titulo,
+        livro_numero_renovacoes,
+        editora_nome
+        
+
      ) =  data
 
 
@@ -102,6 +108,10 @@ def tuple_to_dict(data: tuple) -> dict[str, Any]:
         'data_emprestimo': data_emprestimo,
         'data_para_devolucao': data_para_devolucao,
         'data_devolucao': data_devolucao if data_devolucao else None,
+        'usuario_nome': usuario_nome,
+        'livro_titulo': livro_titulo,
+        'livro_numero_renovacoes': livro_numero_renovacoes,
+        'editora_nome': editora_nome
     }
 
 
@@ -111,11 +121,15 @@ def get_emprestimos_atrasados(db_conection: Connection, ) -> list[dict[str, int]
     '''
     cursor = db_conection.cursor()
     cursor.execute("""SELECT e.id, e.usuario_id, e.livro_id, e.exemplar_id, e.numero_de_renovacoes, e.estado,
-                            e.data_emprestimo, e.data_para_devolucao, e.data_devolucao
+                        e.data_emprestimo, e.data_para_devolucao, e.data_devolucao,
+                        u.nome AS usuario_nome, l.titulo AS livro_titulo, l.renovacoes_permitidas AS livro_numero_renovacoes,
+                        ed.nome AS editora_nome
                         FROM emprestimos AS e
+                        INNER JOIN usuarios AS u ON (u.id = e.usuario_id)
                         INNER JOIN livros  AS l ON (l.id = e.livro_id)
+                        INNER JOIN editoras AS ed ON (ed.id = l.editora_id)
                         WHERE  e.estado = 'EMPRESTADO' AND e.data_para_devolucao  < date('now','localtime')
-                        """)
+                    """)
 
 
     emprestimos_db = cursor.fetchall()
@@ -131,8 +145,14 @@ def get_emprestimo_by_id(db_conection: Connection, emprestimo_id: int) -> dict[s
     Obter um emprestimo pelo id.
     '''
     cursor = db_conection.cursor()
-    cursor.execute(f"""SELECT e.id, e.usuario_id, e.livro_id, e.exemplar_id, e.numero_de_renovacoes, e.estado, e.data_emprestimo, e.data_para_devolucao, e.data_devolucao
-                   FROM emprestimos AS e
+    cursor.execute(f"""SELECT e.id, e.usuario_id, e.livro_id, e.exemplar_id, e.numero_de_renovacoes, e.estado,
+                        e.data_emprestimo, e.data_para_devolucao, e.data_devolucao,
+                        u.nome AS usuario_nome, l.titulo AS livro_titulo, l.renovacoes_permitidas AS livro_numero_renovacoes,
+                        ed.nome AS editora_nome
+                        FROM emprestimos AS e
+                        INNER JOIN usuarios AS u ON (u.id = e.usuario_id)
+                        INNER JOIN livros  AS l ON (l.id = e.livro_id)
+                        INNER JOIN editoras AS ed ON (ed.id = l.editora_id)
                    WHERE e.id = {emprestimo_id} """)
     data = cursor.fetchone()
     if data:
@@ -147,9 +167,14 @@ def get_emprestimos(db_conection: Connection) -> list[dict[str, Any]]:
 
     cursor = db_conection.cursor()
     cursor.execute("""
-                    SELECT e.id, e.usuario_id, e.livro_id, e.exemplar_id, e.numero_de_renovacoes, e.estado,
-                    e.data_emprestimo, e.data_para_devolucao, e.data_devolucao
-                   FROM emprestimos AS e 
+                   SELECT e.id, e.usuario_id, e.livro_id, e.exemplar_id, e.numero_de_renovacoes, e.estado,
+                        e.data_emprestimo, e.data_para_devolucao, e.data_devolucao,
+                        u.nome AS usuario_nome, l.titulo AS livro_titulo, l.renovacoes_permitidas AS livro_numero_renovacoes,
+                        ed.nome AS editora_nome
+                        FROM emprestimos AS e
+                        INNER JOIN usuarios AS u ON (u.id = e.usuario_id)
+                        INNER JOIN livros  AS l ON (l.id = e.livro_id)
+                        INNER JOIN editoras AS ed ON (ed.id = l.editora_id)
                     """)
     emprestimos_db = cursor.fetchall()
     result: list[dict[str, int]] = []
