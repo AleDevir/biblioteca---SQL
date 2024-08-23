@@ -63,6 +63,18 @@ def tuple_to_dict(data: tuple) -> dict[str, Any]:
         'editora_id': editora_id,
     }
 
+def get_livro_by_id(db_conection: Connection, livro_id: int) -> dict[str, str]:
+    '''
+    Obter livro pelo id
+    '''
+    cursor = db_conection.cursor()
+    cursor.execute(f"""SELECT l.id, l.titulo, l.renovacoes_permitidas, l.editora_id
+                        FROM livros AS l
+                        WHERE l.id = {livro_id} """)
+
+    livro_db = cursor.fetchone()
+    return tuple_to_dict(livro_db)
+
 def get_livros_by_autor_nome(db_conection: Connection, autor_nome: str) -> list[dict[str, str]]:
     '''
     Obter todos os livros de um determinado autor

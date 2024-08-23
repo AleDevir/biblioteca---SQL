@@ -17,7 +17,8 @@ from src.db.livro_db import(
     get_livros_disponiveis_count,
     get_livros_emprestado_count,
     get_livros_by_autor_nome,
-    get_livro_by_titulo
+    get_livro_by_titulo,
+    get_livro_by_id
 )
 from src.db.emprestimo_db import(
     get_emprestimos_atrasados,
@@ -287,8 +288,6 @@ def emprestar(conexao: Connection) -> dict[str, Any]:
     return get_emprestimo_by_id(conexao, emprestimo_id)
 
 
-
-
 def renovar_emprestimo(conexao: Connection, identificacao_emprestimo: int) -> dict[str, Any]:
     '''
     Renova o empréstimo.
@@ -298,7 +297,18 @@ def renovar_emprestimo(conexao: Connection, identificacao_emprestimo: int) -> di
         raise ValueError (bright_vermelho(f'\n\tO empréstimo de identificação |{identificacao_emprestimo}| não existe na base de dados'))
     if emprestimo['estado'] == 'DEVOLVIDO':
         raise ValueError (bright_vermelho("\n\tEmpréstimo já foi devolvido."))
-    
+   
+    livro = get_livro_by_id(conexao, emprestimo['livro_id'])
+    renovacoes_permitidas = livro['renovacoes_permitidas']
+
+    if renovacoes_permitidas <= 0:
+        raise ValueError(bright_vermelho(f"\n\tO livro de título {livro['titulo']} não permite renovações."))
+
+    numero_de_renovacoes = emprestimo['numero_de_renovacoes']
+
+    if numero_de_renovacoes >= renovacoes_permitidas:
+        raise ValueError(bright_vermelho(f"\n\tO livro de título {livro['titulo']} atingiu o limite de renovações permitidas: {renovacoes_permitidas}."))
+
     update_emprestimo_renovacao(
         conexao,
         identificacao= identificacao_emprestimo,
@@ -327,7 +337,6 @@ def devolver_emprestimo(conexao: Connection, identificacao_emprestimo: int) -> d
         conexao,
         identificacao= identificacao_emprestimo,
         estado='DEVOLVIDO',
-        data_devolucao = datetime.now(),
     )
     update_exemplar(
         conexao,
