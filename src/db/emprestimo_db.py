@@ -27,9 +27,9 @@ def criar_tabela_emprestimos(db_conection: Connection)-> None:
                     exemplar_id integer NOT NULL,
                     numero_de_renovacoes integer NOT NULL,
                     estado TEXT NOT NULL,
-                    data_emprestimo INTEGER NOT NULL,
-                    data_para_devolucao INTEGER NOT NULL,
-                    data_devolucao INTEGER,
+                    data_emprestimo TEXT NOT NULL,
+                    data_para_devolucao TEXT NOT NULL,
+                    data_devolucao TEXT,
                     FOREIGN KEY(usuario_id) REFERENCES usuarios(id),
                     FOREIGN KEY(livro_id) REFERENCES livros(id),
                     FOREIGN KEY(exemplar_id) REFERENCES exemplares(id))''')
@@ -177,7 +177,7 @@ def update_emprestimo_devolucao(
         db_conection: Connection,
         identificacao: int,
         estado: str,
-        data_devolucao: datetime | None,
+        data_devolucao: datetime | None = datetime.now(),
     ) -> None:
     '''
     Atualiza dados do emprestimo na tabela.
